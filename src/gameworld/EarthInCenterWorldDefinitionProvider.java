@@ -1,7 +1,5 @@
 package gameworld;
 
-import java.awt.Dimension;
-
 import engine.assets.ports.AssetType;
 import engine.model.bodies.ports.BodyType;
 import engine.utils.helpers.DoubleVector;
@@ -36,8 +34,7 @@ public final class EarthInCenterWorldDefinitionProvider extends AbstractWorldDef
         // endregion
 
         // region Players
-        this.addSpaceshipPrototypeAnywhereRandomAsset(
-                1, AssetType.SPACESHIP, 1, 60, 120);
+        this.addSpaceship("spaceship_01", worldWidth * 0.5, worldHeight * 0.5, 90, 0, 1);
 
         this.addTrailEmitterCosmetic("stars_6", 100.0, BodyType.DECORATOR, 100.0);
         // endregion

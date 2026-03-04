@@ -124,6 +124,8 @@ public class View extends JFrame implements KeyListener, WindowFocusListener {
     private DoubleVector viewportDimension;
     private DoubleVector worldDimension;
     private AtomicBoolean fireKeyDown = new AtomicBoolean(false);
+    private volatile boolean gameOverScreenVisible = false;
+    private final AtomicBoolean restartRequested = new AtomicBoolean(false);
 
     // Key state tracking (OS may consume key events without firing keyReleased)
     private final Set<Integer> pressedKeys = new HashSet<>();
@@ -222,6 +224,17 @@ public class View extends JFrame implements KeyListener, WindowFocusListener {
     public void setWorldDimension(DoubleVector worldDim) {
         this.worldDimension = worldDim;
     }
+
+    public void setGameOverScreenVisible(boolean visible) {
+        this.gameOverScreenVisible = visible;
+        if (!visible) {
+            this.restartRequested.set(false);
+        }
+    }
+
+    public boolean consumeRestartRequested() {
+        return this.restartRequested.getAndSet(false);
+    }
     // endregion
 
     public void loadAssets(AssetCatalog assets) {
@@ -306,6 +319,10 @@ public class View extends JFrame implements KeyListener, WindowFocusListener {
         return this.localPlayerId;
     }
 
+    protected boolean isGameOverScreenVisible() {
+        return this.gameOverScreenVisible;
+    }
+
     protected Object[] getProfilingHUDValues(long fps) {
         return this.controller.getProfilingHUDValues(fps);
     }
@@ -386,9 +403,8 @@ public class View extends JFrame implements KeyListener, WindowFocusListener {
         }
 
         try {
-            // Resetear TODOS los controles activos
-            this.controller.playerThrustOff(this.localPlayerId);
-            this.controller.playerRotateOff(this.localPlayerId);
+            this.pressedKeys.clear();
+            this.updateMovementStateFromPressedKeys();
             this.fireKeyDown.set(false);
         } catch (Exception ex) {
             throw new RuntimeException("Error resetting key states: " + ex.getMessage(), ex);
@@ -465,11 +481,16 @@ public class View extends JFrame implements KeyListener, WindowFocusListener {
     @Override
     public void keyPressed(KeyEvent e) {
         try {
-            if (this.localPlayerId == null || this.controller == null) {
+            int keyCode = e.getKeyCode();
+
+            if (keyCode == KeyEvent.VK_ENTER && this.gameOverScreenVisible) {
+                this.restartRequested.set(true);
                 return;
             }
 
-            int keyCode = e.getKeyCode();
+            if (this.localPlayerId == null || this.controller == null) {
+                return;
+            }
 
             // Agregar a tracking si ya no estaba presionada
             if (!this.pressedKeys.contains(keyCode)) {
@@ -514,22 +535,14 @@ public class View extends JFrame implements KeyListener, WindowFocusListener {
         switch (keyCode) {
             case KeyEvent.VK_UP:
             case KeyEvent.VK_W:
-                this.controller.playerThrustOn(this.localPlayerId);
-                break;
-
             case KeyEvent.VK_DOWN:
+            case KeyEvent.VK_S:
             case KeyEvent.VK_X:
-                this.controller.playerReverseThrust(this.localPlayerId);
-                break;
-
             case KeyEvent.VK_LEFT:
             case KeyEvent.VK_A:
-                this.controller.playerRotateLeftOn(this.localPlayerId);
-                break;
-
             case KeyEvent.VK_RIGHT:
             case KeyEvent.VK_D:
-                this.controller.playerRotateRightOn(this.localPlayerId);
+                this.updateMovementStateFromPressedKeys();
                 break;
 
             case KeyEvent.VK_SPACE:
@@ -553,27 +566,48 @@ public class View extends JFrame implements KeyListener, WindowFocusListener {
         switch (keyCode) {
             case KeyEvent.VK_UP:
             case KeyEvent.VK_W:
-                this.controller.playerThrustOff(this.localPlayerId);
-                break;
-
             case KeyEvent.VK_DOWN:
+            case KeyEvent.VK_S:
             case KeyEvent.VK_X:
-                this.controller.playerThrustOff(this.localPlayerId);
-                break;
-
             case KeyEvent.VK_LEFT:
             case KeyEvent.VK_A:
-                this.controller.playerRotateOff(this.localPlayerId);
-                break;
-
             case KeyEvent.VK_RIGHT:
             case KeyEvent.VK_D:
-                this.controller.playerRotateOff(this.localPlayerId);
+                this.updateMovementStateFromPressedKeys();
                 break;
 
             case KeyEvent.VK_SPACE:
                 this.fireKeyDown.set(false);
                 break;
+        }
+    }
+
+    private void updateMovementStateFromPressedKeys() {
+        if (this.localPlayerId == null || this.controller == null) {
+            return;
+        }
+
+        boolean upPressed = this.pressedKeys.contains(KeyEvent.VK_UP) || this.pressedKeys.contains(KeyEvent.VK_W);
+        boolean downPressed = this.pressedKeys.contains(KeyEvent.VK_DOWN)
+                || this.pressedKeys.contains(KeyEvent.VK_S)
+                || this.pressedKeys.contains(KeyEvent.VK_X);
+        boolean leftPressed = this.pressedKeys.contains(KeyEvent.VK_LEFT) || this.pressedKeys.contains(KeyEvent.VK_A);
+        boolean rightPressed = this.pressedKeys.contains(KeyEvent.VK_RIGHT) || this.pressedKeys.contains(KeyEvent.VK_D);
+
+        if (upPressed) {
+            this.controller.playerThrustOn(this.localPlayerId);
+        } else if (downPressed) {
+            this.controller.playerReverseThrust(this.localPlayerId);
+        } else {
+            this.controller.playerThrustOff(this.localPlayerId);
+        }
+
+        if (leftPressed) {
+            this.controller.playerRotateLeftOn(this.localPlayerId);
+        } else if (rightPressed) {
+            this.controller.playerRotateRightOn(this.localPlayerId);
+        } else {
+            this.controller.playerRotateOff(this.localPlayerId);
         }
     }
     // endregion

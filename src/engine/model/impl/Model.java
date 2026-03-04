@@ -3,13 +3,13 @@ package engine.model.impl;
 // region imports
 import static java.lang.System.nanoTime;
 import java.util.ArrayList;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
-import engine.actions.ActionType;
 import engine.actions.ActionDTO;
+import engine.actions.ActionType;
 import engine.events.domain.ports.BodyRefDTO;
 import engine.events.domain.ports.BodyToEmitDTO;
 import engine.events.domain.ports.DomainEventType;
@@ -183,9 +183,8 @@ public class Model implements BodyEventProcessor {
     private final BodyBatchManager bodyBatchManager;
     // endregion
 
-    // region Buffer (for zero-allocation snapshot generation)
+    // region Buffer/pool
     private PoolMDTO<PhysicsValuesDTO> physicsValuesPool;
-    private ArrayList<BodyData> scratchDynamicsBuffer;
     // endregion
 
     // region Constructors
@@ -200,8 +199,7 @@ public class Model implements BodyEventProcessor {
         this.worldWidth = worldDimension.x;
         this.worldHeight = worldDimension.y;
 
-        // Create scratch buffer and preallocate physics DTO pool
-        scratchDynamicsBuffer = new ArrayList<>(maxDynamicBodies);
+        // Preallocate physics DTO pool
         this.physicsValuesPool = new PoolMDTO<>(() -> new PhysicsValuesDTO(0L, 0, 0, 0, 0));
         this.physicsValuesPool.preallocate(4 * this.maxBodies);
         
@@ -430,7 +428,7 @@ public class Model implements BodyEventProcessor {
     }
 
     public ArrayList<BodyData> snapshotRenderData() {
-        this.scratchDynamicsBuffer.clear();
+        ArrayList<BodyData> snapshot = new ArrayList<>(this.dynamicBodies.size());
 
         this.dynamicBodies.forEach((entityId, body) -> {
             PhysicsValuesDTO phyValues = body.getPhysicsValues();
@@ -439,10 +437,10 @@ public class Model implements BodyEventProcessor {
             }
 
             BodyData bodyInfo = body.getBodyData();
-            this.scratchDynamicsBuffer.add(bodyInfo);
+            snapshot.add(bodyInfo);
         });
 
-        return this.scratchDynamicsBuffer;
+        return snapshot;
     }
 
     public int getDefaultMaxBodies() {

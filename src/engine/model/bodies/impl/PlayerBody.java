@@ -16,10 +16,15 @@ import engine.utils.spatial.core.SpatialGrid;
 public class PlayerBody extends DynamicBody {
 
     private static final boolean PLAYERS_EXCLUSIVE = true;
+    private static final double CHARACTER_MOVE_SPEED = 320.0d;
 
     // region Fields
     private final List<String> weaponIds = new java.util.ArrayList<>(4);
     private int currentWeaponIndex = -1; // -1 = sin arma
+    private boolean movingUp;
+    private boolean movingDown;
+    private boolean movingLeft;
+    private boolean movingRight;
     private double damage = 0D;
     private double energye = 1D;
     private int temperature = 1;
@@ -44,7 +49,7 @@ public class PlayerBody extends DynamicBody {
 
         this.setMaxThrustForce(800);
         this.setMaxAngularAcceleration(1000);
-        this.setAngularSpeed(30);
+        this.setAngularSpeed(0);
     }
 
     @Override
@@ -191,32 +196,38 @@ public class PlayerBody extends DynamicBody {
         emitter.registerRequest();
     }
 
-    public void reverseThrust() {
-        this.thurstNow(-this.getMaxThrustForce());
+    @Override
+    public synchronized void thrustMaxOn() {
+        this.movingUp = true;
+        this.applyCharacterMovement();
     }
 
-    public void rotateLeftOn() {
-        PhysicsValuesDTO phyValues = this.getPhysicsValues();
-
-        if (phyValues.angularSpeed == 0) {
-            this.setAngularSpeed(-this.getAngularSpeed());
-        }
-
-        this.accelerationAngularInc(-this.getMaxAngularAcceleration());
+    @Override
+    public synchronized void thrustOff() {
+        this.movingUp = false;
+        this.movingDown = false;
+        this.applyCharacterMovement();
     }
 
-    public void rotateRightOn() {
-        PhysicsValuesDTO phyValues = this.getPhysicsValues();
-        if (phyValues.angularSpeed == 0) {
-            this.setAngularSpeed(this.getAngularSpeed());
-        }
-
-        this.accelerationAngularInc(this.getMaxAngularAcceleration());
+    public synchronized void reverseThrust() {
+        this.movingDown = true;
+        this.applyCharacterMovement();
     }
 
-    public void rotateOff() {
-        this.setAngularAcceleration(0.0d);
-        this.setAngularSpeed(0.0d);
+    public synchronized void rotateLeftOn() {
+        this.movingLeft = true;
+        this.applyCharacterMovement();
+    }
+
+    public synchronized void rotateRightOn() {
+        this.movingRight = true;
+        this.applyCharacterMovement();
+    }
+
+    public synchronized void rotateOff() {
+        this.movingLeft = false;
+        this.movingRight = false;
+        this.applyCharacterMovement();
     }
 
     public void setDamage(double damage) {
@@ -264,5 +275,57 @@ public class PlayerBody extends DynamicBody {
         double dtSeconds = ((double) dtNanos) / 1_000_000_0000.0d;
 
         return emitter.mustEmitNow(dtSeconds);
+    }
+
+    private void applyCharacterMovement() {
+        PhysicsValuesDTO current = this.getPhysicsValues();
+
+        double dirX = 0.0d;
+        double dirY = 0.0d;
+
+        if (this.movingRight) {
+            dirX += 1.0d;
+        }
+        if (this.movingLeft) {
+            dirX -= 1.0d;
+        }
+        if (this.movingDown) {
+            dirY += 1.0d;
+        }
+        if (this.movingUp) {
+            dirY -= 1.0d;
+        }
+
+        double speedX = 0.0d;
+        double speedY = 0.0d;
+        double angle = current.angle;
+
+        double magnitude = Math.hypot(dirX, dirY);
+        if (magnitude > 0.0d) {
+            double normX = dirX / magnitude;
+            double normY = dirY / magnitude;
+
+            speedX = normX * CHARACTER_MOVE_SPEED;
+            speedY = normY * CHARACTER_MOVE_SPEED;
+
+            angle = Math.toDegrees(Math.atan2(normY, normX));
+            if (angle < 0.0d) {
+                angle += 360.0d;
+            }
+        }
+
+        this.getPhysicsEngine().setPhysicsValues(new PhysicsValuesDTO(
+                System.nanoTime(),
+                current.posX,
+                current.posY,
+                angle,
+                current.size,
+                speedX,
+                speedY,
+                0.0d,
+                0.0d,
+                0.0d,
+                0.0d,
+                0.0d));
     }
 }

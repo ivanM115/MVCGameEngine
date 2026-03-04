@@ -15,9 +15,12 @@ import engine.controller.ports.ActionsGenerator;
 import engine.controller.ports.EngineState;
 import engine.controller.ports.WorldManager;
 import engine.events.domain.ports.eventtype.DomainEvent;
+import engine.model.bodies.impl.DynamicBody;
 import engine.model.bodies.ports.BodyData;
+import engine.model.bodies.ports.BodyType;
 import engine.model.emitter.ports.EmitterConfigDto;
 import engine.model.impl.Model;
+import engine.model.physics.ports.PhysicsValuesDTO;
 import engine.model.ports.DomainEventProcessor;
 import engine.utils.helpers.DoubleVector;
 import engine.view.core.View;
@@ -172,6 +175,7 @@ public class Controller implements WorldManager, DomainEventProcessor {
     private View view;
     private DoubleVector viewDimension;
     private DoubleVector worldDimension;
+    private volatile String localPlayerId;
     private int maxBodies;
     // endregion
 
@@ -248,6 +252,7 @@ public class Controller implements WorldManager, DomainEventProcessor {
     // endregion Engine
 
     // region Getters
+    @Override
     public EngineState getEngineState() {
         return this.engineState;
     }
@@ -264,8 +269,30 @@ public class Controller implements WorldManager, DomainEventProcessor {
         return this.model.getDeadQuantity();
     }
 
+    @Override
     public DoubleVector getWorldDimension() {
         return this.worldDimension;
+    }
+
+    public DoubleVector getLocalPlayerPosition() {
+        String playerId = this.localPlayerId;
+        if (playerId == null || playerId.isBlank()) {
+            return null;
+        }
+
+        var playerBody = this.model.getBody(playerId, BodyType.PLAYER);
+        if (playerBody == null) {
+            return null;
+        }
+
+        BodyData bodyData = playerBody.getBodyData();
+        if (bodyData == null || bodyData.getPhysicsValues() == null) {
+            return null;
+        }
+
+        return new DoubleVector(
+                bodyData.getPhysicsValues().posX,
+                bodyData.getPhysicsValues().posY);
     }
 
     public PlayerRenderDTO getPlayerRenderData(String playerId) {
@@ -331,7 +358,9 @@ public class Controller implements WorldManager, DomainEventProcessor {
     // endregion
 
     // region setters
+    @Override
     public void setLocalPlayer(String playerId) {
+        this.localPlayerId = playerId;
         this.view.setLocalPlayer(playerId);
     }
 
@@ -385,6 +414,68 @@ public class Controller implements WorldManager, DomainEventProcessor {
     public ArrayList<DynamicRenderDTO> snapshotRenderData(DynamicRenderableMapper mapper) {
         ArrayList<BodyData> snapshot = this.model.snapshotRenderData();
         return mapper.fromBodyDTOPooled(snapshot);
+    }
+
+    public ArrayList<BodyData> snapshotDynamicBodies() {
+        return this.model.snapshotRenderData();
+    }
+
+    public void steerDynamicBodyTowards(
+            String entityId,
+            double targetX,
+            double targetY,
+            double blend,
+            double speedFactor) {
+
+        if (entityId == null || entityId.isBlank()) {
+            return;
+        }
+
+        var body = this.model.getBody(entityId, BodyType.DYNAMIC);
+        if (!(body instanceof DynamicBody dynamicBody)) {
+            return;
+        }
+
+        PhysicsValuesDTO current = dynamicBody.getPhysicsValues();
+        if (current == null) {
+            return;
+        }
+
+        double dx = targetX - current.posX;
+        double dy = targetY - current.posY;
+        double distance = Math.hypot(dx, dy);
+        if (distance < 0.001) {
+            return;
+        }
+
+        double b = Math.max(0.0, Math.min(0.35, blend));
+
+        double currentSpeed = Math.hypot(current.speedX, current.speedY);
+        double targetSpeed = Math.max(70.0, Math.min(220.0, 130.0 * Math.max(0.5, Math.min(1.5, speedFactor))));
+        if (currentSpeed > 1.0) {
+            targetSpeed = (targetSpeed * 0.65) + (Math.min(220.0, currentSpeed) * 0.35);
+        }
+
+        double desiredVX = (dx / distance) * targetSpeed;
+        double desiredVY = (dy / distance) * targetSpeed;
+
+        double newSpeedX = current.speedX * (1.0 - b) + desiredVX * b;
+        double newSpeedY = current.speedY * (1.0 - b) + desiredVY * b;
+        double newAngle = Math.toDegrees(Math.atan2(newSpeedY, newSpeedX));
+
+        dynamicBody.doMovement(new PhysicsValuesDTO(
+                current.timeStamp,
+                current.posX,
+                current.posY,
+                newAngle,
+                current.size,
+                newSpeedX,
+                newSpeedY,
+                current.accX,
+                current.accY,
+                current.angularSpeed,
+                current.angularAcc,
+                current.thrust));
     }
 
     // *** INTERFACE IMPLEMENTATIONS (one region per interface) ***

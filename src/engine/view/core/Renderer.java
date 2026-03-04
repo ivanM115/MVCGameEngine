@@ -4,9 +4,12 @@ import java.awt.AlphaComposite;
 import java.awt.Canvas;
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.GraphicsConfiguration;
 import java.awt.GraphicsEnvironment;
+import java.awt.Toolkit;
 import java.awt.Transparency;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferStrategy;
@@ -18,24 +21,22 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import engine.controller.mappers.DynamicRenderableMapper;
 import engine.controller.ports.EngineState;
+import engine.utils.helpers.DoubleVector;
 import engine.utils.images.ImageCache;
 import engine.utils.images.Images;
+import engine.utils.pooling.PoolMDTO;
 import engine.utils.profiling.impl.RendererProfiler;
-import engine.utils.helpers.DoubleVector;
 import engine.view.hud.impl.InstrumentationHUD;
 import engine.view.hud.impl.PlayerHUD;
 import engine.view.hud.impl.SpatialGridHUD;
 import engine.view.hud.impl.SystemHUD;
 import engine.view.renderables.impl.DynamicRenderable;
 import engine.view.renderables.impl.Renderable;
-import engine.utils.pooling.PoolMDTO;
 import engine.view.renderables.ports.DynamicRenderDTO;
 import engine.view.renderables.ports.PlayerRenderDTO;
 import engine.view.renderables.ports.RenderDTO;
 import engine.view.renderables.ports.RenderMetricsDTO;
 import engine.view.renderables.ports.SpatialGridStatisticsRenderDTO;
-
-import java.awt.Toolkit;
 
 /**
  * Renderer
@@ -126,6 +127,10 @@ import java.awt.Toolkit;
  * for a small game engine rather than a UI-centric Swing renderer.
  */
 public class Renderer extends Canvas implements Runnable {
+
+    private static final double CAMERA_DEADZONE_MIN_RATIO = 0.2d;
+    private static final double CAMERA_DEADZONE_MAX_RATIO = 0.8d;
+    private static final double CAMERA_FOLLOW_LERP = 0.2d;
 
     // region Constants
     private static final int REFRESH_DELAY_IN_MILLIS = 1; //
@@ -365,6 +370,44 @@ public class Renderer extends Canvas implements Runnable {
         if (spatialGridStats != null) {
             this.spatialGridHUD.draw(g, spatialGridStats.toObjectArray());
         }
+
+        if (this.view.isGameOverScreenVisible()) {
+            this.drawGameOverOverlay(g);
+        }
+    }
+
+    private void drawGameOverOverlay(Graphics2D g) {
+        if (this.viewDimension == null) {
+            return;
+        }
+
+        int width = (int) this.viewDimension.x;
+        int height = (int) this.viewDimension.y;
+
+        g.setComposite(AlphaComposite.SrcOver.derive(0.55f));
+        g.setColor(Color.BLACK);
+        g.fillRect(0, 0, width, height);
+
+        g.setComposite(AlphaComposite.SrcOver);
+        g.setColor(Color.WHITE);
+
+        String title = "GAME OVER";
+        String hint = "Pulsa ENTER para reiniciar";
+
+        Font titleFont = new Font("Arial", Font.BOLD, 72);
+        Font hintFont = new Font("Arial", Font.PLAIN, 32);
+
+        g.setFont(titleFont);
+        FontMetrics titleMetrics = g.getFontMetrics();
+        int titleX = (width - titleMetrics.stringWidth(title)) / 2;
+        int titleY = (height / 2) - 20;
+        g.drawString(title, titleX, titleY);
+
+        g.setFont(hintFont);
+        FontMetrics hintMetrics = g.getFontMetrics();
+        int hintX = (width - hintMetrics.stringWidth(hint)) / 2;
+        int hintY = titleY + 60;
+        g.drawString(hint, hintX, hintY);
     }
 
     private void drawStaticRenderables(Graphics2D g) {
@@ -570,10 +613,10 @@ public class Renderer extends Canvas implements Runnable {
         double desiredX;
         double desiredY;
 
-        double minX = this.viewDimension.x * 0.3;
-        double maxX = this.viewDimension.x * 0.7;
-        double minY = this.viewDimension.y * 0.3;
-        double maxY = this.viewDimension.y * 0.7;
+        double minX = this.viewDimension.x * CAMERA_DEADZONE_MIN_RATIO;
+        double maxX = this.viewDimension.x * CAMERA_DEADZONE_MAX_RATIO;
+        double minY = this.viewDimension.y * CAMERA_DEADZONE_MIN_RATIO;
+        double maxY = this.viewDimension.y * CAMERA_DEADZONE_MAX_RATIO;
 
         if (playerX < minX) {
             desiredX = playerData.posX - minX;
@@ -594,8 +637,8 @@ public class Renderer extends Canvas implements Runnable {
         // double desiredX = playerData.posX - (this.viewDimension.x / 2.0d);
         // double desiredY = playerData.posY - (this.viewDimension.y / 2.0d);
 
-        this.cameraX += (desiredX - this.cameraX);
-        this.cameraY += (desiredY - this.cameraY);
+        this.cameraX += (desiredX - this.cameraX) * CAMERA_FOLLOW_LERP;
+        this.cameraY += (desiredY - this.cameraY) * CAMERA_FOLLOW_LERP;
 
         // // Clamp when camera goes out of world limits
         this.cameraX = clamp(cameraX, 0.0, this.maxCameraClampX);

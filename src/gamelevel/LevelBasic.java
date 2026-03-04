@@ -7,7 +7,6 @@ import engine.generators.AbstractLevelGenerator;
 import engine.world.ports.DefEmitterDTO;
 import engine.world.ports.DefItem;
 import engine.world.ports.DefItemDTO;
-import engine.world.ports.DefWeaponDTO;
 import engine.world.ports.WorldDefinition;
 
 public class LevelBasic extends AbstractLevelGenerator {
@@ -16,6 +15,7 @@ public class LevelBasic extends AbstractLevelGenerator {
 
     public LevelBasic(WorldManager worldManager, WorldDefinition worldDef) {
         super(worldManager, worldDef);
+        this.generateWorld();
     }
 
     // *** PROTECTED (alphabetic order) ***

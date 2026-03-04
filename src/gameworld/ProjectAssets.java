@@ -1,5 +1,9 @@
 package gameworld;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
 import engine.assets.core.AssetCatalog;
 import engine.assets.ports.AssetIntensity;
 import engine.assets.ports.AssetType;
@@ -9,17 +13,17 @@ public final class ProjectAssets {
     public final AssetCatalog catalog;
 
     public ProjectAssets() {
-        this.catalog = new AssetCatalog("src/resources/images/");
+        this.catalog = new AssetCatalog(resolveImagesBasePath());
 
         // region asteroids (asteroid-***)
-        this.catalog.register("asteroid_01", "asteroid-01-mini.png", AssetType.ASTEROID, AssetIntensity.HIGH);
-        this.catalog.register("asteroid_02", "asteroid-02-mini.png", AssetType.ASTEROID, AssetIntensity.HIGH);
-        this.catalog.register("asteroid_03", "asteroid-03-mini.png", AssetType.ASTEROID, AssetIntensity.HIGH);
-        this.catalog.register("asteroid_04", "asteroid-04-mini.png", AssetType.ASTEROID, AssetIntensity.HIGH);
-        this.catalog.register("asteroid_05", "asteroid-05-mini.png", AssetType.ASTEROID, AssetIntensity.HIGH);
-        this.catalog.register("asteroid_06", "asteroid-06-mini.png", AssetType.ASTEROID, AssetIntensity.HIGH);
-        this.catalog.register("asteroid_07", "asteroid-07.png", AssetType.ASTEROID, AssetIntensity.HIGH);
-        this.catalog.register("asteroid_08", "asteroid-08.png", AssetType.ASTEROID, AssetIntensity.HIGH);
+        this.catalog.register("asteroid_01", "Slime_Dragon_Quest.png", AssetType.ASTEROID, AssetIntensity.HIGH);
+        this.catalog.register("asteroid_02", "Slime_Dragon_Quest.png", AssetType.ASTEROID, AssetIntensity.HIGH);
+        this.catalog.register("asteroid_03", "Slime_Dragon_Quest.png", AssetType.ASTEROID, AssetIntensity.HIGH);
+        this.catalog.register("asteroid_04", "Slime_Dragon_Quest.png", AssetType.ASTEROID, AssetIntensity.HIGH);
+        this.catalog.register("asteroid_05", "Slime_Dragon_Quest.png", AssetType.ASTEROID, AssetIntensity.HIGH);
+        this.catalog.register("asteroid_06", "Slime_Dragon_Quest.png", AssetType.ASTEROID, AssetIntensity.HIGH);
+        this.catalog.register("asteroid_07", "Slime_Dragon_Quest.png", AssetType.ASTEROID, AssetIntensity.HIGH);
+        this.catalog.register("asteroid_08", "Slime_Dragon_Quest.png", AssetType.ASTEROID, AssetIntensity.HIGH);
         // endregion
 
         // region backgrounds (bg-***)
@@ -48,6 +52,7 @@ public final class ProjectAssets {
         this.catalog.register("back_23", "bg-23-space-seamless.jpg", AssetType.BACKGROUND, AssetIntensity.LOW);
         this.catalog.register("back_24", "bg-24-space-seamless.jpg", AssetType.BACKGROUND, AssetIntensity.LOW);
         this.catalog.register("back_25", "bg-25-space-seamless.jpg", AssetType.BACKGROUND, AssetIntensity.LOW);
+        this.catalog.register("llanura", "Llanura.jpg", AssetType.BACKGROUND, AssetIntensity.LOW);
         // endregion
 
         // region black holes (black-hole-***)
@@ -208,7 +213,7 @@ public final class ProjectAssets {
         this.catalog.register("stardust_02", "stardust-02.png", AssetType.STARDUST, AssetIntensity.HIGH);
 
         // region spaceships (spaceship-***)
-        this.catalog.register("spaceship_01", "spaceship-01.png", AssetType.SPACESHIP, AssetIntensity.HIGH);
+        this.catalog.register("spaceship_01", "Personaje.png", AssetType.SPACESHIP, AssetIntensity.HIGH);
         this.catalog.register("spaceship_02", "spaceship-02.png", AssetType.SPACESHIP, AssetIntensity.HIGH);
         this.catalog.register("spaceship_03", "spaceship-03.png", AssetType.SPACESHIP, AssetIntensity.HIGH);
         this.catalog.register("spaceship_04", "spaceship-04.png", AssetType.SPACESHIP, AssetIntensity.HIGH);
@@ -235,5 +240,28 @@ public final class ProjectAssets {
         this.catalog.register("signs_01", "ui-signs-1.png", AssetType.UI_SIGN, AssetIntensity.HIGH);
         // endregion
 
+    }
+
+    private static String resolveImagesBasePath() {
+        Path[] candidates = new Path[] {
+                Paths.get("src", "resources", "images"),
+                Paths.get("MVCGameEngine", "src", "resources", "images"),
+                Paths.get(System.getProperty("user.dir", "."), "src", "resources", "images"),
+                Paths.get(System.getProperty("user.dir", "."), "MVCGameEngine", "src", "resources", "images")
+        };
+
+        for (Path candidate : candidates) {
+            if (Files.isDirectory(candidate)) {
+                String normalized = candidate.toAbsolutePath().normalize().toString().replace('\\', '/');
+                if (!normalized.endsWith("/")) {
+                    normalized += "/";
+                }
+                System.out.println("Assets base path: " + normalized);
+                return normalized;
+            }
+        }
+
+        throw new IllegalStateException(
+                "No se encontró carpeta de assets. Probadas rutas: src/resources/images y MVCGameEngine/src/resources/images");
     }
 }

@@ -7,7 +7,6 @@ import engine.controller.ports.WorldManager;
 import engine.world.ports.DefEmitterDTO;
 import engine.world.ports.DefItem;
 import engine.world.ports.DefItemDTO;
-import engine.world.ports.DefWeaponDTO;
 import engine.world.ports.WorldDefinition;
 
 public abstract class AbstractLevelGenerator {
@@ -30,8 +29,6 @@ public abstract class AbstractLevelGenerator {
 
         this.worldManager = worldManager;
         this.worldDefinition = worldDef;
-
-        this.createWorld();
     }
     // endregion
 
@@ -136,6 +133,12 @@ public abstract class AbstractLevelGenerator {
             return minInclusive;
         }
         return minInclusive + (this.rnd.nextDouble() * (maxInclusive - minInclusive));
+    }
+
+    // *** PROTECTED ***
+
+    protected final void generateWorld() {
+        this.createWorld();
     }
 
     // *** PRIVATE ***

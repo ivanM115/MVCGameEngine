@@ -1,5 +1,8 @@
 package engine.world.core;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Random;
 
@@ -19,7 +22,7 @@ import gameworld.ProjectAssets;
 public abstract class AbstractWorldDefinitionProvider implements WorldDefinitionProvider {
 
     // region Constants
-    private static final String ASSET_PATH = "src/resources/images/";
+    private static final String ASSET_PATH = resolveAssetsPath();
     private static final double WORLD_MIN = 0.0;
     private static final double ANY_HEADING_MIN_DEG = 0.0;
     private static final double ANY_HEADING_MAX_DEG = 359.999;
@@ -39,6 +42,28 @@ public abstract class AbstractWorldDefinitionProvider implements WorldDefinition
     private static final boolean UNLIMITED_BODIES = true;
     private static final int ZERO_MAX_BODIES = 0;
     // endregion
+
+    private static String resolveAssetsPath() {
+        Path[] candidates = new Path[] {
+                Paths.get("src", "resources", "images"),
+                Paths.get("MVCGameEngine", "src", "resources", "images"),
+                Paths.get(System.getProperty("user.dir", "."), "src", "resources", "images"),
+                Paths.get(System.getProperty("user.dir", "."), "MVCGameEngine", "src", "resources", "images")
+        };
+
+        for (Path candidate : candidates) {
+            if (Files.isDirectory(candidate)) {
+                String normalized = candidate.toAbsolutePath().normalize().toString().replace('\\', '/');
+                if (!normalized.endsWith("/")) {
+                    normalized += "/";
+                }
+                System.out.println("World asset path: " + normalized);
+                return normalized;
+            }
+        }
+
+        return "src/resources/images/";
+    }
 
     // region Fields
     private static final Random rnd = new Random();

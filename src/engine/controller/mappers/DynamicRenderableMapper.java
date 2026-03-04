@@ -3,11 +3,14 @@ package engine.controller.mappers;
 import java.util.ArrayList;
 
 import engine.model.bodies.ports.BodyData;
+import engine.model.bodies.ports.BodyType;
 import engine.model.physics.ports.PhysicsValuesDTO;
 import engine.utils.pooling.PoolMDTO;
 import engine.view.renderables.ports.DynamicRenderDTO;
 
 public class DynamicRenderableMapper extends DTOPooledMapper<DynamicRenderDTO> {
+
+    private static final double PLAYER_SPRITE_ANGLE_OFFSET_DEG = 90.0d;
 
     public static DynamicRenderDTO fromBodyDTO(BodyData bodyData) {
         PhysicsValuesDTO phyValues = bodyData.getPhysicsValues();
@@ -19,7 +22,7 @@ public class DynamicRenderableMapper extends DTOPooledMapper<DynamicRenderDTO> {
         DynamicRenderDTO renderablesData = new DynamicRenderDTO(
                 bodyData.entityId,
                 phyValues.posX, phyValues.posY,
-                phyValues.angle,
+            toRenderAngle(bodyData.type, phyValues.angle),
                 phyValues.size,
                 phyValues.timeStamp,
                 phyValues.speedX, phyValues.speedY,
@@ -79,7 +82,7 @@ public class DynamicRenderableMapper extends DTOPooledMapper<DynamicRenderDTO> {
         target.updateFrom(
                 bodyData.entityId,
                 phyValues.posX, phyValues.posY,
-                phyValues.angle,
+            toRenderAngle(bodyData.type, phyValues.angle),
                 phyValues.size,
                 phyValues.timeStamp,
                 phyValues.speedX, phyValues.speedY,
@@ -90,4 +93,17 @@ public class DynamicRenderableMapper extends DTOPooledMapper<DynamicRenderDTO> {
     }
 
     // endregion
+
+    private static double toRenderAngle(BodyType bodyType, double physicalAngle) {
+        if (bodyType != BodyType.PLAYER) {
+            return physicalAngle;
+        }
+
+        double angle = physicalAngle + PLAYER_SPRITE_ANGLE_OFFSET_DEG;
+        angle %= 360.0d;
+        if (angle < 0.0d) {
+            angle += 360.0d;
+        }
+        return angle;
+    }
 }
